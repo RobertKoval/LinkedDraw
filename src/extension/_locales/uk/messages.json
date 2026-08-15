@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "LinkedDraw для LinkedIn"
+  },
+  "extensionDescription": {
+    "message": "Малюй на обкладинці профілю LinkedIn і передавай згенероване зображення штатному завантажувачу LinkedIn."
+  },
+  "actionTitle": {
+    "message": "Відкрити LinkedDraw"
+  }
+}

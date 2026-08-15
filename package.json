@@ -1,0 +1,34 @@
+{
+  "name": "linked-draw-extension",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "author": "Robert Koval",
+  "description": "A local-first WebExtension for drawing directly on a LinkedIn profile cover and handing the generated image to LinkedIn's native upload flow.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs all",
+    "build:chrome": "node scripts/build.mjs chrome",
+    "build:firefox": "node scripts/build.mjs firefox",
+    "build:safari": "node scripts/build.mjs safari",
+    "build:dev": "node scripts/build.mjs dev",
+    "verify": "node scripts/verify-dist.mjs all",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "syntax": "node scripts/check-syntax.mjs",
+    "check": "npm run syntax && npm run shell && npm test && npm run verify",
+    "compat:firefox": "npm run build:firefox && npx --yes web-ext@10.6.0 lint --source-dir dist/firefox --no-input --warnings-as-errors",
+    "package:browsers": "node scripts/package.mjs",
+    "package": "npm run check && npm run package:browsers",
+    "package:source": "node scripts/source-package.mjs",
+    "release": "npm run clean && npm run check && npm run package:browsers && npm run package:source",
+    "mock": "node scripts/mock-server.mjs",
+    "e2e:chromium": "npm run build:dev && python3 tests/e2e/chromium_mock.py",
+    "screenshots": "npm run build:dev && LINKED_DRAW_SCREENSHOT_DIR=artifacts/store python3 tests/e2e/chromium_mock.py",
+    "safari:convert": "bash scripts/safari-convert.sh",
+    "clean": "node scripts/clean.mjs",
+    "shell": "bash -n scripts/*.sh"
+  }
+}

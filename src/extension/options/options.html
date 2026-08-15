@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkedDraw settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header>
+      <img src="../icons/icon-128.png" width="64" height="64" alt="">
+      <div>
+        <h1 data-i18n="options">Settings</h1>
+        <p data-i18n="privacySummary"></p>
+      </div>
+    </header>
+
+    <form id="settings-form">
+      <section>
+        <label class="row checkbox-row">
+          <input name="autoConfirmUpload" type="checkbox">
+          <span data-i18n="autoConfirm"></span>
+        </label>
+        <label class="row checkbox-row">
+          <input name="includeCurrentBackground" type="checkbox">
+          <span data-i18n="includeBackground"></span>
+        </label>
+        <label class="row checkbox-row">
+          <input name="showSafeAreas" type="checkbox">
+          <span data-i18n="showSafeAreasOption"></span>
+        </label>
+      </section>
+
+      <section>
+        <label class="row">
+          <span data-i18n="outputFormat"></span>
+          <select name="outputFormat">
+            <option value="png" data-i18n="png"></option>
+            <option value="jpeg" data-i18n="jpeg"></option>
+          </select>
+        </label>
+        <label class="row">
+          <span data-i18n="jpegQuality"></span>
+          <div class="range"><input name="jpegQuality" type="range" min="0.55" max="0.98" step="0.01"><output data-output="jpegQuality"></output></div>
+        </label>
+      </section>
+
+      <section>
+        <label class="row">
+          <span data-i18n="defaultColor"></span>
+          <input name="defaultColor" type="color">
+        </label>
+        <label class="row">
+          <span data-i18n="defaultWidth"></span>
+          <div class="range"><input name="defaultWidth" type="range" min="1" max="48" step="1"><output data-output="defaultWidth"></output></div>
+        </label>
+        <label class="row">
+          <span data-i18n="defaultFontSize"></span>
+          <div class="range"><input name="defaultFontSize" type="range" min="16" max="120" step="2"><output data-output="defaultFontSize"></output></div>
+        </label>
+      </section>
+    </form>
+
+    <footer>
+      <button id="reset" type="button" data-i18n="reset"></button>
+      <span id="save-status" aria-live="polite"></span>
+    </footer>
+  </main>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/browser-api.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

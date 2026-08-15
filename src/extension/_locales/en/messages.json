@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "LinkedDraw for LinkedIn"
+  },
+  "extensionDescription": {
+    "message": "Draw on your LinkedIn profile cover and pass the generated image to LinkedIn's native upload flow."
+  },
+  "actionTitle": {
+    "message": "Open LinkedDraw"
+  }
+}

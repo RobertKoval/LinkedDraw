@@ -1,0 +1,23 @@
+{
+  "background": {
+    "scripts": [
+      "shared/constants.js",
+      "shared/browser-api.js",
+      "shared/url-policy.js",
+      "shared/image-policy.js",
+      "background/index.js"
+    ],
+    "persistent": false
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "linked-draw@robertkoval.dev",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}

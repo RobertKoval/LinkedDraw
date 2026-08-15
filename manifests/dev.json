@@ -1,0 +1,41 @@
+{
+  "name": "LinkedDraw DEV",
+  "minimum_chrome_version": "121",
+  "background": {
+    "service_worker": "background/index.js"
+  },
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://*.licdn.com/*",
+    "http://127.0.0.1:4173/*",
+    "http://localhost:4173/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/in/*",
+        "http://127.0.0.1:4173/*",
+        "http://localhost:4173/*"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "js": [
+        "shared/constants.js",
+        "shared/browser-api.js",
+        "shared/settings.js",
+        "shared/i18n.js",
+        "shared/url-policy.js",
+        "shared/image-policy.js",
+        "content/geometry.js",
+        "content/history.js",
+        "content/render.js",
+        "content/banner-detector.js",
+        "content/native-upload.js",
+        "content/styles.js",
+        "content/editor.js",
+        "content/app.js",
+        "content/index.js"
+      ]
+    }
+  ]
+}

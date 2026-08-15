@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkedDraw mock LinkedIn profile</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="logo">in</div>
+    <input aria-label="Search" placeholder="Search">
+    <span>Home</span><span>My Network</span><span>Jobs</span><span>Messaging</span>
+  </nav>
+
+  <main>
+    <section class="profile-card">
+      <div class="profile-background-image" data-view-name="profile-background-image">
+        <img id="cover-image" class="profile-background-image__image" src="assets/banner.svg" alt="Profile background image">
+        <button id="edit-cover" class="edit-cover" type="button" aria-label="Edit cover image" title="Edit cover image">📷</button>
+      </div>
+      <div class="intro">
+        <div class="avatar">LD</div>
+        <h1>LinkedDraw Demo</h1>
+        <p>Browser extension test profile</p>
+        <p class="muted">Mock profile for deterministic extension testing</p>
+      </div>
+    </section>
+
+    <aside>
+      <h2>Profile language</h2>
+      <button>English</button>
+      <button>Українська</button>
+    </aside>
+  </main>
+
+  <dialog id="cover-dialog" aria-labelledby="dialog-title">
+    <form method="dialog" class="dialog-shell">
+      <header>
+        <h2 id="dialog-title">Change cover image</h2>
+        <button id="close-dialog" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="dialog-content">
+        <img id="preview" src="assets/banner.svg" alt="Cover preview">
+        <label class="upload-button">
+          Change photo
+          <input id="cover-file" name="cover-image" type="file" accept="image/png,image/jpeg" hidden>
+        </label>
+      </div>
+      <footer>
+        <button id="cancel-dialog" type="button">Cancel</button>
+        <button id="save-cover" type="button" disabled>Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="event-log" aria-live="polite"></div>
+  <script src="mock.js"></script>
+</body>
+</html>
