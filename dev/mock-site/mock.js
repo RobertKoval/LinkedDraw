@@ -66,8 +66,8 @@
 
   saveButton.addEventListener('click', function () {
     if (!pendingUrl) return;
-    cover.src = pendingUrl;
-    preview.src = pendingUrl;
+    cover.src = new URL('/assets/banner.svg?native-save=1', location.href).href;
+    preview.src = cover.src;
     saveButton.disabled = true;
     if (dialog.open && typeof dialog.close === 'function') dialog.close();
     else dialog.removeAttribute('open');

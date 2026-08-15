@@ -49,6 +49,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+          cache-dependency-path: requirements-e2e.txt
       - name: Install E2E tooling
         run: |
           npm ci --ignore-scripts

@@ -166,7 +166,7 @@
     knownSelectors.forEach(function (selector) {
       try {
         root.querySelectorAll(selector).forEach(function (element) { add(element, true); });
-      } catch (_error) {
+      } catch {
         // Old Safari can reject some case-insensitive selectors. Heuristics remain.
       }
     });

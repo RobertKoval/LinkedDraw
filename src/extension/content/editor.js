@@ -372,7 +372,7 @@
     }
 
     this.activePointerId = event.pointerId;
-    try { this.canvas.setPointerCapture(event.pointerId); } catch (_error) { /* optional */ }
+    try { this.canvas.setPointerCapture(event.pointerId); } catch { /* optional */ }
 
     if (this.tool === 'pen' || this.tool === 'eraser') {
       this.transient = {
@@ -411,7 +411,7 @@
     if (this.activePointerId !== event.pointerId || !this.transient) return;
     event.preventDefault();
     event.stopPropagation();
-    try { this.canvas.releasePointerCapture(event.pointerId); } catch (_error) { /* optional */ }
+    try { this.canvas.releasePointerCapture(event.pointerId); } catch { /* optional */ }
     this.activePointerId = null;
 
     var object = this.transient;
@@ -428,7 +428,7 @@
     if (this.activePointerId !== event.pointerId || !this.transient) return;
     event.preventDefault();
     event.stopPropagation();
-    try { this.canvas.releasePointerCapture(event.pointerId); } catch (_error) { /* optional */ }
+    try { this.canvas.releasePointerCapture(event.pointerId); } catch { /* optional */ }
     this.activePointerId = null;
     this.transient = null;
     this.scheduleRender();

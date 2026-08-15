@@ -112,11 +112,12 @@ Bridges a generated `File` into LinkedIn's native UI:
 4. assigns the generated file with `DataTransfer`;
 5. dispatches `input` and `change` events;
 6. optionally waits for and clicks Apply/Save;
-7. requires stable post-confirmation cover evidence belonging to the same detected target;
-8. classifies the result as `success`, `handed-off`, or `failed`;
-9. downloads the generated image on failure.
+7. confirms completion from either a stable published-image URL on the same target or LinkedIn's transition from the trusted image editor back to a strong native cover surface;
+8. closes only the remaining dialogs recorded in the active cover flow, newest first, after confirmed success;
+9. classifies the result as `success`, `handed-off`, or `failed`;
+10. downloads the generated image on failure.
 
-The default completes the native Save flow (`autoConfirmUpload: true`) because pressing Save in LinkedDraw represents the user's confirmation. Users can disable it for manual crop/review. Closing a dialog without stable evidence is never reported as success.
+The default completes the native Save flow (`autoConfirmUpload: true`) because pressing Save in LinkedDraw represents the user's confirmation. Users can disable it for manual crop/review. A dialog is closed only after stable URL evidence or the native `Edit image` → `Cover photo` completion transition; dialog closure alone is never reported as success.
 
 ### Background and operation lifecycle
 

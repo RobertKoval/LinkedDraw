@@ -26,7 +26,7 @@
         setStatus(LD.i18n.t('profileNotDetected'));
         primaryButton.textContent = LD.i18n.t('openLinkedIn');
       }
-    } catch (_error) {
+    } catch {
       contentStatus = null;
       setStatus(LD.i18n.t('unavailable'));
       primaryButton.textContent = LD.i18n.t('openLinkedIn');
@@ -42,7 +42,7 @@
         await LD.webext.createTab({ url: 'https://www.linkedin.com/in/me/' });
       }
       window.close();
-    } catch (_error) {
+    } catch {
       primaryButton.disabled = false;
       setStatus(LD.i18n.t('unavailable'));
     }

@@ -167,10 +167,9 @@ def run() -> dict[str, object]:
                     print("E2E: save requested", file=sys.stderr, flush=True)
 
                     dialog = page.locator("#cover-dialog")
-                    dialog.wait_for(state="visible")
                     file_input = page.locator("#cover-file")
                     page.wait_for_function(
-                        "document.querySelector('#cover-file').files.length === 1"
+                        "() => document.querySelector('#cover-file').files.length === 1"
                     )
                     print("E2E: native file handoff observed", file=sys.stderr, flush=True)
                     file_name = file_input.evaluate("input => input.files[0].name")
@@ -201,7 +200,7 @@ def run() -> dict[str, object]:
                         "element => { element.value = '13'; element.dispatchEvent(new Event('input', { bubbles: true })); }"
                     )
                     options_page.wait_for_function(
-                        "document.querySelector('#save-status').textContent.trim().length > 0"
+                        "() => document.querySelector('#save-status').textContent.trim().length > 0"
                     )
                     print("E2E: options save observed", file=sys.stderr, flush=True)
                     options_page.reload()

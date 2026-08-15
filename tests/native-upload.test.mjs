@@ -536,6 +536,471 @@ test('native upload reports success only after stable post-save cover evidence',
   assert.equal(result.reason, 'banner-changed-after-confirm');
 });
 
+test('native upload closes only its nested Edit image and Cover photo dialogs after confirmed Save', async () => {
+  let state = 'dialogs';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const savedUrl = 'https://media.licdn.com/cover-new.jpg';
+  const closeOuter = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-cover'); state = 'closed'; } });
+  const outerDialog = fakeSurface('Cover photo Change photo Delete', [closeOuter]);
+  const closeInner = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-edit'); state = 'outer'; } });
+  const saveAction = fakeAction({ text: 'Save', click: () => { clicks.push('save'); state = 'saved'; } });
+  const editDialog = fakeSurface('Edit image Save changes', [closeInner, saveAction]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      if (!isDialogSelector || state === 'closed') return [];
+      if (state === 'outer') return [outerDialog];
+      return [outerDialog, editDialog];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout,
+    clearTimeout
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: state === 'dialogs' ? oldUrl : savedUrl });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: outerDialog,
+    coverDialogs: [outerDialog, editDialog]
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(clicks, ['save', 'close-edit', 'close-cover']);
+  assert.equal(state, 'closed');
+});
+
+test('native upload advances through two distinct trusted Save controls without repeating either', async () => {
+  let now = 0;
+  let state = 'inner';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const savedUrl = 'https://media.licdn.com/cover-new.jpg';
+  const outerSave = fakeAction({ text: 'Save', click: () => { clicks.push('save-outer'); state = 'final'; } });
+  const outerDialog = fakeSurface('Add a cover image Save', [outerSave]);
+  const innerSave = fakeAction({ text: 'Save changes', click: () => { clicks.push('save-inner'); state = 'outer'; } });
+  const innerDialog = fakeSurface('Edit image Save changes', [innerSave]);
+  const closeFinal = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-final'); state = 'closed'; } });
+  const deleteFinal = fakeAction({ text: 'Delete' });
+  const finalDialog = fakeSurface('Cover photo Edit Change photo Delete', [closeFinal, deleteFinal]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      if (!isDialogSelector || state === 'closed') return [];
+      if (state === 'inner') return [outerDialog, innerDialog];
+      if (state === 'outer') return [outerDialog];
+      return [finalDialog];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    Date: { now: () => { now += 100; return now; } },
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout() {}
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: state === 'final' || state === 'closed' ? savedUrl : oldUrl });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: outerDialog,
+    coverDialogs: [outerDialog, innerDialog]
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(clicks, ['save-inner', 'save-outer', 'close-final']);
+  assert.equal(state, 'closed');
+});
+
+test('native upload does not repeat the same Save step after React replaces its button node', async () => {
+  let now = 0;
+  let clicks = 0;
+  let activeSave;
+  const replacementSave = fakeAction({ text: 'Save changes', click: () => { clicks += 1; } });
+  const initialSave = fakeAction({
+    text: 'Save changes',
+    click: () => {
+      clicks += 1;
+      activeSave = replacementSave;
+    }
+  });
+  activeSave = initialSave;
+  const editDialog = {
+    textContent: 'Edit image Save changes',
+    getAttribute() { return ''; },
+    getBoundingClientRect() { return { left: 80, top: 80, width: 500, height: 300 }; },
+    querySelectorAll(selector) {
+      if (selector === 'button, [role="button"], a') return [activeSave];
+      return [];
+    }
+  };
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      return isDialogSelector ? [editDialog] : [];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    Date: { now: () => { now += 100; return now; } },
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout() {}
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: 'https://media.licdn.com/cover-old.jpg' });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs('https://media.licdn.com/cover-old.jpg', {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: editDialog,
+    coverDialogs: [editDialog]
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'postcondition-unconfirmed');
+  assert.equal(clicks, 1);
+});
+
+test('native upload closes a replacement Cover photo dialog created after confirmed Save', async () => {
+  let state = 'dialogs';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const savedUrl = 'https://media.licdn.com/cover-new.jpg';
+  const pickerDialog = fakeSurface('Add a cover image Upload single photo', []);
+  const saveAction = fakeAction({ text: 'Save changes', click: () => { clicks.push('save'); state = 'completed-cover'; } });
+  const editDialog = fakeSurface('Edit image Save changes', [saveAction]);
+  const closeFinal = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-final'); state = 'closed'; } });
+  const deleteFinal = fakeAction({ text: 'Delete' });
+  const finalCoverDialog = fakeSurface('Cover photo Edit Change photo Delete', [closeFinal, deleteFinal]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      if (!isDialogSelector || state === 'closed') return [];
+      return state === 'dialogs' ? [pickerDialog, editDialog] : [finalCoverDialog];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout,
+    clearTimeout
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: state === 'dialogs' ? oldUrl : savedUrl });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: pickerDialog,
+    coverDialogs: [pickerDialog, editDialog]
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(clicks, ['save', 'close-final']);
+  assert.equal(state, 'closed');
+});
+
+test('native upload closes the strong Cover photo surface that was already behind Edit image before Save', async () => {
+  let state = 'editing';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const savedUrl = 'https://media.licdn.com/cover-new.jpg';
+  const originalBanner = {};
+  const replacedBanner = {};
+  const closeCover = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-cover'); state = 'closed'; } });
+  const deleteCover = fakeAction({ text: 'Delete' });
+  const coverDialog = fakeSurface('Cover photo Edit Change photo Delete', [closeCover, deleteCover]);
+  const saveAction = fakeAction({ text: 'Save changes', click: () => { clicks.push('save'); state = 'cover'; } });
+  const editDialog = fakeSurface('Edit image Save changes', [saveAction]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      if (!isDialogSelector || state === 'closed') return [];
+      return state === 'editing' ? [coverDialog, editDialog] : [coverDialog];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout,
+    clearTimeout
+  });
+  UploadLD.bannerDetector.detect = () => state === 'editing'
+    ? { element: originalBanner, imageUrl: oldUrl }
+    : { element: replacedBanner, imageUrl: savedUrl };
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    target: { element: originalBanner, imageUrl: oldUrl },
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: editDialog,
+    coverDialogs: [editDialog]
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.reason, 'cover-surface-returned-after-confirm');
+  assert.deepEqual(clicks, ['save', 'close-cover']);
+  assert.equal(state, 'closed');
+});
+
+test('uploadCover never adopts an unrelated Save dialog created by file assignment', async () => {
+  let now = 0;
+  let state = 'page';
+  const clicks = [];
+  const inputs = [];
+  const input = fakeFileInput({
+    name: '',
+    id: '',
+    dispatchEvent(event) {
+      if (event.type === 'change') state = 'unrelated-dialog';
+    }
+  });
+  input.closest = () => null;
+  const unrelatedSave = fakeAction({ text: 'Save', click: () => { clicks.push('save-unrelated'); } });
+  const unrelatedDialog = fakeSurface('Create a post Save', [unrelatedSave]);
+  const editButton = fakeAction({
+    text: 'Edit background image',
+    click: () => {
+      clicks.push('edit-cover');
+      inputs.push(input);
+      state = 'input-ready';
+    }
+  });
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      if (selector === 'input[type="file"]') return inputs;
+      if (selector === '[role="menu"]' || selector === '[role="listbox"]') return [];
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      return isDialogSelector && state === 'unrelated-dialog' ? [unrelatedDialog] : [];
+    }
+  };
+  class TestEvent {
+    constructor(type) { this.type = type; }
+  }
+  class TestDataTransfer {
+    constructor() {
+      this.files = [];
+      this.items = { add: file => { this.files.push(file); } };
+    }
+  }
+  class TestInput {}
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    Date: { now: () => { now += 1000; return now; } },
+    DataTransfer: TestDataTransfer,
+    Event: TestEvent,
+    HTMLInputElement: TestInput,
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout() {}
+  });
+  const target = { editButton, imageUrl: 'https://media.licdn.com/cover-old.jpg' };
+  UploadLD.bannerDetector.detect = () => target;
+
+  const result = await UploadLD.nativeUpload.uploadCover(
+    { name: 'linked-draw.png' },
+    target,
+    { autoConfirmUpload: true }
+  );
+
+  assert.equal(result.status, 'handed-off');
+  assert.deepEqual(clicks, ['edit-cover']);
+});
+
+test('native upload does not close dialogs when Save produces only a blob preview', async () => {
+  let state = 'dialog';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const closeAction = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close'); state = 'closed'; } });
+  const saveAction = fakeAction({ text: 'Save changes', click: () => { clicks.push('save'); state = 'preview'; } });
+  const dialog = fakeSurface('Edit image Save changes', [closeAction, saveAction]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      return isDialogSelector && state !== 'closed' ? [dialog] : [];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout,
+    clearTimeout
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: state === 'dialog' ? oldUrl : 'blob:https://www.linkedin.com/preview' });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: dialog,
+    coverDialogs: []
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(clicks.filter(click => click === 'save').length, 1);
+  assert.equal(clicks.includes('close'), false);
+  assert.notEqual(state, 'closed');
+});
+
+test('native upload never closes an unrelated newer dialog after confirmed Save', async () => {
+  let state = 'cover';
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const savedUrl = 'https://media.licdn.com/cover-new.jpg';
+  const closeCover = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-cover'); } });
+  const saveAction = fakeAction({ text: 'Save', click: () => { clicks.push('save'); state = 'unrelated'; } });
+  const coverDialog = fakeSurface('Cover photo Save', [closeCover, saveAction]);
+  const closeUnrelated = fakeAction({ text: 'Dismiss', click: () => { clicks.push('close-unrelated'); } });
+  const unrelatedDialog = fakeSurface('Create a post about cover image design', [closeUnrelated]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      if (!isDialogSelector) return [];
+      return state === 'cover' ? [coverDialog] : [coverDialog, unrelatedDialog];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout,
+    clearTimeout
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: state === 'cover' ? oldUrl : savedUrl });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: coverDialog,
+    coverDialogs: []
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(clicks, ['save']);
+});
+
+test('native upload never confirms an unrelated newer Save dialog', async () => {
+  let now = 0;
+  const clicks = [];
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const coverDialog = fakeSurface('Cover photo Change photo', []);
+  const editSave = fakeAction({ text: 'Save changes', click: () => { clicks.push('save-edit'); } });
+  const editDialog = fakeSurface('Edit image Save changes', [editSave]);
+  const unrelatedSave = fakeAction({ text: 'Save', click: () => { clicks.push('save-unrelated'); } });
+  const unrelatedDialog = fakeSurface('Create a post Save', [unrelatedSave]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      return isDialogSelector ? [coverDialog, editDialog, unrelatedDialog] : [];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    Date: { now: () => { now += 1000; return now; } },
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout() {}
+  });
+  UploadLD.bannerDetector.detect = () => ({ imageUrl: oldUrl });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: coverDialog,
+    coverDialogs: [coverDialog, editDialog]
+  });
+
+  assert.equal(result.success, false);
+  assert.deepEqual(clicks, []);
+});
+
+test('native upload rejects rotating HTTPS preview URLs as unstable publish evidence', async () => {
+  let now = 0;
+  let state = 'dialog';
+  let preview = 0;
+  const oldUrl = 'https://media.licdn.com/cover-old.jpg';
+  const saveAction = fakeAction({ text: 'Save', click: () => { state = 'preview'; } });
+  const dialog = fakeSurface('Edit image Save changes', [saveAction]);
+  const uploadDocument = {
+    querySelectorAll(selector) {
+      const isDialogSelector = selector === 'dialog[open]' || selector === '[role="dialog"]' || selector === '.artdeco-modal' || selector === '[data-test-modal]';
+      return isDialogSelector ? [dialog] : [];
+    }
+  };
+  const UploadLD = await loadNamespace([
+    'shared/constants.js',
+    'content/geometry.js',
+    'content/banner-detector.js',
+    'content/native-upload.js'
+  ], {
+    Date: { now: () => { now += 100; return now; } },
+    getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1', backgroundImage: 'none' }),
+    document: uploadDocument,
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout() {}
+  });
+  UploadLD.bannerDetector.detect = () => ({
+    imageUrl: state === 'dialog' ? oldUrl : `https://media.licdn.com/cover-preview-${preview += 1}.jpg`
+  });
+
+  const result = await UploadLD.nativeUpload.confirmNativeDialogs(oldUrl, {
+    initialDialogs: new Set(),
+    initialMenus: new Set(),
+    surface: dialog,
+    coverDialogs: [dialog]
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, 'postcondition-unconfirmed');
+});
+
 test('native upload reports success when a profile without a cover gains one after Save', async () => {
   let state = 'dialog';
   const savedUrl = 'https://media.licdn.com/cover-new.jpg';

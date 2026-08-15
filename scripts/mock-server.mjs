@@ -38,7 +38,7 @@ const server = createServer(async (request, response) => {
       'cache-control': 'no-store'
     });
     response.end(body);
-  } catch (_error) {
+  } catch {
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('Not found');
   }

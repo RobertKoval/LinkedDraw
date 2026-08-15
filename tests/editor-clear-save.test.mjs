@@ -119,7 +119,6 @@ test('background decode failure becomes unavailable and still requires explicit 
     objects: [],
     modal: { classList: { add: () => {}, remove: () => {} } },
     commitText: () => {},
-    updateControls: () => {},
     setBusy(value) { this.busy = value; },
     onSave: async () => { saveCalls += 1; return { status: 'success' }; },
     destroy() { this.destroyed = true; }

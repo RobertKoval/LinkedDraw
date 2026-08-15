@@ -4,6 +4,12 @@ LinkedDraw is a local-first browser extension for drawing directly on your Linke
 
 It supports Chromium browsers, Firefox desktop, and Safari on macOS from one plain-JavaScript codebase. The extension has no backend, telemetry, remote code, or LinkedIn private API integration.
 
+<p align="center">
+  <img src="docs/images/linkeddraw-editor.png" width="1280" alt="LinkedDraw editor with drawing tools, safe-area guides, and LinkedIn cover preview">
+</p>
+
+<p align="center"><em>Draw, undo, clear, preview safe areas, and save through LinkedIn's native cover flow.</em></p>
+
 ## Features
 
 - Pen, line, arrow, rectangle, text, and eraser tools.

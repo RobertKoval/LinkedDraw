@@ -4,6 +4,11 @@ All notable changes are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Completed LinkedIn's native Save flow by closing only active cover dialogs after a stable published-image URL or LinkedIn's native return from `Edit image` to `Cover photo`.
+- Rejected `blob:` URLs, rotating preview URLs, and unrelated Save dialogs as upload-completion evidence.
+
 ## [0.1.0] - 2026-08-12
 
 ### Added

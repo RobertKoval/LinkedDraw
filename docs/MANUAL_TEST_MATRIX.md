@@ -10,7 +10,7 @@ Status: `PENDING`, `PASS`, `FAIL`, or `N/A`.
 |---|---|---|---:|---|
 | 2026-08-12 | Chromium mock | unpacked `dist/dev` | PASS | Real service worker/content-script boundary; open, draw, Clear/Undo, Cancel preservation, reopen, 1584×396 PNG native file handoff; zero console/network errors |
 | 2026-08-12 | Firefox static compatibility | `dist/firefox` | PASS | `web-ext 10.6.0 lint`: zero errors, notices, warnings |
-| 2026-08-12 | Safari source build | `dist/safari` + Xcode wrapper | PASS | macOS 14.5, Safari 17.5, Xcode 16.2; conversion clean; unsigned Release build succeeded; embedded resources matched source |
+| 2026-08-16 | Safari source build | `dist/safari` + Xcode wrapper | PASS | macOS 14.5, Safari 17.5, Xcode 16.2; Apple Development-signed Debug build succeeded; registered extension resources matched source |
 
 ## Browser matrix
 
@@ -19,7 +19,7 @@ Status: `PENDING`, `PASS`, `FAIL`, or `N/A`.
 | Chrome / Chromium | PASS automated | PENDING | PENDING | PENDING | Retest store-signed build |
 | Edge / Brave | PENDING | PENDING | PENDING | PENDING | Chromium ZIP compatibility check |
 | Firefox desktop | PENDING | PENDING | PENDING | PENDING | Temporary add-on first, then signed XPI |
-| Safari macOS | PENDING | PENDING | PENDING | PENDING | Source conversion/unsigned compile PASS; runtime requires signing/enabling |
+| Safari macOS | PENDING | PASS auto-save | PENDING | PASS development-signed | Safari 17.5 applied the generated cover and automatically closed `Edit image` and `Cover photo` |
 
 ## Mock-profile checks
 
@@ -49,7 +49,7 @@ Run Cancel paths before Save, and back up the current cover before Delete.
 | L04 | Existing cover composition | Current raster cover appears or neutral warning is explicit | PENDING | PENDING | PENDING |
 | L05 | Manual handoff then native Cancel | Preview receives file; published cover remains unchanged | PENDING | PENDING | PENDING |
 | L06 | Manual handoff then native Save | Same cover target changes; no false success | PENDING | PENDING | PENDING |
-| L07 | Auto-confirm enabled | Completion is success only with stable post-Save evidence | PENDING | PENDING | PENDING |
+| L07 | Auto-confirm enabled | Completion requires a stable published URL or native return to `Cover photo`; only active cover-flow dialogs close | PENDING | PENDING | PASS 17.5 |
 | L08 | Clear, Undo, safe guides | Scene semantics correct; guides absent from output | PENDING | PENDING | PENDING |
 | L09 | Delete rejected at confirmation | Native dialog does not open; cover unchanged | PENDING | PENDING | PENDING |
 | L10 | Confirmed Delete on backed-up cover | Visible LinkedIn flow; uncertain completion is handed off | PENDING | PENDING | PENDING |

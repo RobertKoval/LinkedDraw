@@ -36,11 +36,25 @@
     'обложк', 'фоновое изображение'
   ];
 
+  var imageEditorKeywords = [
+    'edit image',
+    'редагувати зображення',
+    'upravit obrázek',
+    'редактировать изображение'
+  ];
+
   var deleteKeywords = [
     'delete', 'remove',
     'видалити', 'прибрати',
     'odstranit',
     'удалить', 'убрать'
+  ];
+
+  var closeKeywords = [
+    'close', 'dismiss',
+    'закрити',
+    'zavřít',
+    'закрыть'
   ];
 
   function sleep(milliseconds) {
@@ -227,9 +241,9 @@
     return score;
   }
 
-  function findDialogAction(mode, session) {
-    var dialog = newestDialog(session);
-    var scope = dialog || (session && session.surface) || newestActionSurface(session) || document;
+  function findDialogAction(mode, session, trustedScope) {
+    var dialog = trustedScope || newestDialog(session);
+    var scope = trustedScope || dialog || (session && session.surface) || newestActionSurface(session) || document;
     var buttons = scope.querySelectorAll('button, [role="button"], a');
     var best = null;
     var bestScore = -Infinity;
@@ -265,6 +279,39 @@
     return findActionByKeywords(scope, deleteKeywords);
   }
 
+  function findCloseAction(scope) {
+    return scope ? findActionByKeywords(scope, closeKeywords) : null;
+  }
+
+  function rememberCoverDialog(session, dialog) {
+    if (!session || !dialog || visibleDialogs(session).indexOf(dialog) < 0) return;
+    if (!Array.isArray(session.coverDialogs)) session.coverDialogs = [];
+    if (session.coverDialogs.indexOf(dialog) < 0) session.coverDialogs.push(dialog);
+  }
+
+  function topmostTrustedDialog(session) {
+    if (!session) return null;
+    var activeDialogs = visibleDialogs(session);
+    var trustedDialogs = Array.isArray(session.coverDialogs) ? session.coverDialogs.slice() : [];
+    if (session.surface && trustedDialogs.indexOf(session.surface) < 0) trustedDialogs.push(session.surface);
+    for (var index = trustedDialogs.length - 1; index >= 0; index -= 1) {
+      if (activeDialogs.indexOf(trustedDialogs[index]) < 0) continue;
+      return activeDialogs[activeDialogs.length - 1] === trustedDialogs[index] ? trustedDialogs[index] : null;
+    }
+    return null;
+  }
+
+  function firstNewImageEditorDialog(baselineDialogs, session) {
+    var activeDialogs = visibleDialogs(session);
+    for (var index = 0; index < activeDialogs.length; index += 1) {
+      var candidate = activeDialogs[index];
+      if (baselineDialogs.has(candidate)) continue;
+      if (!containsAny(buttonText(candidate), imageEditorKeywords)) continue;
+      if (findDialogAction('confirm', session, candidate)) return candidate;
+    }
+    return null;
+  }
+
   function assignFile(input, file) {
     if (typeof DataTransfer !== 'function') {
       throw new Error('This browser does not expose DataTransfer to the content script');
@@ -283,7 +330,7 @@
     if (!element) return false;
     try {
       element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
-    } catch (_error) {
+    } catch {
       // scrollIntoView options are not uniform across Safari versions.
     }
     element.click();
@@ -337,6 +384,12 @@
   function uploadEvidence(previousBannerUrl, detectedBanner, session) {
     if (!detectedBanner || !targetMatchesSession(session, detectedBanner) || !detectedBanner.imageUrl) return null;
     if (detectedBanner.imageUrl === previousBannerUrl) return null;
+    try {
+      var protocol = new URL(detectedBanner.imageUrl).protocol;
+      if (protocol !== 'https:' && protocol !== 'http:') return null;
+    } catch {
+      return null;
+    }
     return previousBannerUrl ? 'banner-changed-after-confirm' : 'banner-added-after-confirm';
   }
 
@@ -345,14 +398,18 @@
     var interval = intervalMs || 120;
     var matchesNeeded = requiredMatches || 3;
     var lastEvidence = null;
+    var lastEvidenceUrl = null;
     var consecutiveMatches = 0;
 
     while (Date.now() < deadline) {
       assertSessionCurrent(session);
-      var evidence = uploadEvidence(previousBannerUrl, LD.bannerDetector.detect(document), session);
-      if (evidence && evidence === lastEvidence) consecutiveMatches += 1;
+      var detectedBanner = LD.bannerDetector.detect(document);
+      var evidence = uploadEvidence(previousBannerUrl, detectedBanner, session);
+      var evidenceUrl = evidence && detectedBanner ? detectedBanner.imageUrl : null;
+      if (evidence && evidence === lastEvidence && evidenceUrl === lastEvidenceUrl) consecutiveMatches += 1;
       else {
         lastEvidence = evidence;
+        lastEvidenceUrl = evidenceUrl;
         consecutiveMatches = evidence ? 1 : 0;
       }
       if (consecutiveMatches >= matchesNeeded) return evidence;
@@ -365,17 +422,62 @@
     var clicked = 0;
     for (var round = 0; round < LD.constants.nativeConfirmRounds; round += 1) {
       assertSessionCurrent(session);
-      var button = await waitFor(function () { return findDialogAction('confirm', session); }, 5000, 140, session);
+      var button = await waitFor(function () {
+        var trustedDialog = topmostTrustedDialog(session);
+        return trustedDialog ? findDialogAction('confirm', session, trustedDialog) : null;
+      }, 5000, 140, session);
       if (!button) break;
+      var confirmationDialog = topmostTrustedDialog(session);
+      var confirmationText = buttonText(button);
       var baselineUrl = currentBannerUrl(session) || previousBannerUrl;
       assertSessionCurrent(session);
       clickElement(button);
       clicked += 1;
       var evidence = await waitForStableUploadEvidence(baselineUrl, 1800, 120, 3, session);
-      if (evidence) return { success: true, clicked: clicked, reason: evidence };
+      var completedCoverSurface = await rememberCompletedCoverSurface(
+        session,
+        confirmationDialog,
+        evidence ? 800 : 3000
+      );
+      if (evidence || completedCoverSurface) {
+        await closeCompletedCoverSurfaces(session);
+        return {
+          success: true,
+          clicked: clicked,
+          reason: evidence || 'cover-surface-returned-after-confirm'
+        };
+      }
       if (visibleDialogs(session).length === 0) break;
+      var nextDialog = topmostTrustedDialog(session);
+      var nextButton = nextDialog ? findDialogAction('confirm', session, nextDialog) : null;
+      if (nextDialog === confirmationDialog && (!nextButton || buttonText(nextButton) === confirmationText)) break;
     }
     return { success: false, clicked: clicked, reason: clicked ? 'postcondition-unconfirmed' : 'confirm-not-found' };
+  }
+
+  async function rememberCompletedCoverSurface(session, confirmationDialog, timeoutMs) {
+    var coverSurface = await waitFor(function () {
+      var candidate = newestDialog(session);
+      if (!candidate || candidate === confirmationDialog) return null;
+      return findDeleteAction(candidate) ? candidate : null;
+    }, timeoutMs, 100, session);
+    if (coverSurface) rememberCoverDialog(session, coverSurface);
+    return coverSurface;
+  }
+
+  async function closeCompletedCoverSurfaces(session) {
+    var trustedDialogs = session && Array.isArray(session.coverDialogs) ? session.coverDialogs.slice() : [];
+    for (var index = trustedDialogs.length - 1; index >= 0; index -= 1) {
+      assertSessionCurrent(session);
+      var dialog = trustedDialogs[index];
+      var activeDialogs = visibleDialogs(session);
+      if (activeDialogs.indexOf(dialog) < 0) continue;
+      if (activeDialogs[activeDialogs.length - 1] !== dialog) return;
+      var closeAction = findCloseAction(dialog);
+      if (!closeAction) return;
+      clickElement(closeAction);
+      await waitFor(function () { return newestDialog(session) !== dialog; }, 800, 80, session);
+    }
   }
 
   function downloadFile(file) {
@@ -401,6 +503,7 @@
       initialMenus: new Set(visibleMenus()),
       initialInputs: new Set(allFileInputs()),
       detachedInputAuthorization: { phase: 'inactive' },
+      coverDialogs: [],
       surface: null
     };
   }
@@ -429,7 +532,10 @@
       armDetachedInputAuthorization(session);
       clickElement(action);
       var nextDialog = await waitFor(function () { return newestDialog(session); }, 2500, 100, session);
-      if (nextDialog) session.surface = nextDialog;
+      if (nextDialog) {
+        session.surface = nextDialog;
+        rememberCoverDialog(session, nextDialog);
+      }
       input = await waitFor(function () { return findBestFileInput(session.initialInputs, session); }, 2500, 100, session);
       if (input) {
         consumeDetachedInputAuthorization(session);
@@ -510,13 +616,24 @@
       if (session.postClickCurrent) session.isCurrent = session.postClickCurrent;
       var surface = await waitFor(function () { return newestActionSurface(session); }, 2500, 100, session);
       session.surface = surface;
+      rememberCoverDialog(session, surface);
       var input = await locateInputAfterEdit(session);
       if (!input) throw new Error('LinkedIn image file input was not found');
 
       assertSessionCurrent(session);
+      var dialogsBeforeAssignment = new Set(visibleDialogs(session));
       assignFile(input, file);
       injected = true;
-      await sleep(650);
+      var postAssignmentDialog = await waitFor(function () {
+        var newDialog = firstNewImageEditorDialog(dialogsBeforeAssignment, session);
+        if (newDialog) return newDialog;
+        var trustedDialog = topmostTrustedDialog(session);
+        return trustedDialog && findDialogAction('confirm', session, trustedDialog) ? trustedDialog : null;
+      }, 2500, 100, session);
+      if (postAssignmentDialog) {
+        session.surface = postAssignmentDialog;
+        rememberCoverDialog(session, postAssignmentDialog);
+      }
       assertSessionCurrent(session);
 
       if (!settings.autoConfirmUpload) {
